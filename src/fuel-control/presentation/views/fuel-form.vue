@@ -19,15 +19,15 @@ const session = useSessionStore()
 
 const form = ref({
   vehicleId: fleet.vehicles[0]?.id ?? '',
-  driverId: session.user?.id ?? 'u-driver-demo',
+  driverId: session.user?.id,
   liters: null,
   totalCost: null,
   mileageAtRefuel: null,
   date: new Date().toISOString().slice(0, 10)
 })
 
-function save() {
-  fuel.registerFuelConsumption({ ...form.value })
+async function save() {
+  await fuel.registerFuelConsumption({ ...form.value })
   router.push('/fuel')
 }
 </script>
