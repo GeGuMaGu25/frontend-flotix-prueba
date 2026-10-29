@@ -22,8 +22,8 @@ if (!workshop) router.replace('/workshops')
 
 const form = ref({ vehicleId: fleet.vehicles[0]?.id ?? '', faultDescription: '' })
 
-function save() {
-  maintenance.submitMaintenanceRequest({ ...form.value, mechanicId: workshop.id })
+async function save() {
+  await maintenance.submitMaintenanceRequest({ ...form.value, mechanicId: workshop.id })
   router.push('/maintenance')
 }
 </script>
