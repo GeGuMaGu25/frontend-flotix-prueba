@@ -20,9 +20,9 @@ const catalog = commerce.catalog
 const quantities = ref(Object.fromEntries(catalog.map((p) => [p.sku, 1])))
 const successMsg = ref('')
 
-function buy(product) {
-  commerce.purchaseIoTDevice({
-    ownerId: session.user?.id ?? 'u-owner-demo',
+async function buy(product) {
+  await commerce.purchaseIoTDevice({
+    ownerId: session.user?.id,
     sku: product.sku,
     deviceQuantity: quantities.value[product.sku]
   })

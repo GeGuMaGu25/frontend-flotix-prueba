@@ -4,22 +4,25 @@ import { commerceService } from '../../application/commerce.service.js'
 /** Pinia store — Digital Experience / IoT Commerce. Wraps CommerceService. */
 export const useCommerceStore = defineStore('commerce', {
   state: () => ({
-    orders: commerceService.listOrders()
+    orders: []
   }),
   getters: {
     catalog: () => commerceService.catalog
   },
   actions: {
-    refresh() {
-      this.orders = commerceService.listOrders()
+    async refresh() {
+      // The API does not store the SKU, so keep the ones known from this session's purchases.
+      const skus = Object.fromEntries(this.orders.map((o) => [o.id, o.sku]))
+      this.orders = (await commerceService.listOrders()).map((o) => ({ ...o, sku: skus[o.id] ?? o.sku }))
     },
-    purchaseIoTDevice(payload) {
-      commerceService.purchaseIoTDevice(payload)
-      this.refresh()
+    async purchaseIoTDevice(payload) {
+      const order = await commerceService.purchaseIoTDevice(payload)
+      this.orders = [order, ...this.orders]
+      await this.refresh()
     },
-    updateOrderStatus(id, status) {
-      commerceService.updateOrderStatus(id, status)
-      this.refresh()
+    async updateOrderStatus(id, status) {
+      await commerceService.updateOrderStatus(id, status)
+      await this.refresh()
     }
   }
 })
