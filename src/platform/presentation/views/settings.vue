@@ -34,8 +34,8 @@ const activeTab = ref('Mi cuenta')
 // --- Mi cuenta ---
 const accountForm = ref({ name: user?.name ?? '', email: user?.email ?? '', companyName: user?.companyName ?? '', workshopName: user?.workshopName ?? '' })
 const accountSaved = ref(false)
-function saveAccount() {
-  session.updateProfile({ ...accountForm.value })
+async function saveAccount() {
+  await session.updateProfile({ ...accountForm.value })
   accountSaved.value = true
   setTimeout(() => (accountSaved.value = false), 3000)
 }
