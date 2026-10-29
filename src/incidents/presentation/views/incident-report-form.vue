@@ -16,10 +16,10 @@ const incidents = useIncidentsStore()
 const fleet = useFleetStore()
 const session = useSessionStore()
 
-const form = ref({ vehicleId: fleet.vehicles[0]?.id ?? '', driverId: session.user?.id ?? 'u-driver-demo', description: '' })
+const form = ref({ vehicleId: fleet.vehicles[0]?.id ?? '', driverId: session.user?.id, description: '' })
 
-function save() {
-  incidents.reportVehicleIncident({ ...form.value })
+async function save() {
+  await incidents.reportVehicleIncident({ ...form.value })
   router.push('/incidents')
 }
 </script>

@@ -1,7 +1,8 @@
-import { IncidentRepository } from '../infrastructure/persistence/incident.repository.js'
+import { IncidentApiRepository } from '../infrastructure/persistence/incident-api.repository.js'
 import { Incident } from '../domain/model/entities/incident.entity.js'
 import { IncidentStatus } from '../domain/model/value-objects/incident-status.js'
 import { alertsService } from '@/alerts/application/alerts.service.js'
+import { fleetService } from '@/fleet-management/application/fleet-management.js'
 
 /**
  * IncidentReporting — application layer, Incident Management.
@@ -12,18 +13,18 @@ import { alertsService } from '@/alerts/application/alerts.service.js'
  */
 export class IncidentReporting {
   constructor() {
-    this.repository = new IncidentRepository()
+    this.repository = new IncidentApiRepository()
   }
 
   listIncidents() {
     return this.repository.getAll()
   }
 
-  reportVehicleIncident(payload) {
-    const incident = new Incident(payload)
-    this.repository.add(incident)
-    alertsService.sendNotification({
-      userId: 'u-owner-demo',
+  async reportVehicleIncident(payload) {
+    const incident = await this.repository.add(new Incident(payload))
+    const vehicle = await fleetService.getVehicle(incident.vehicleId)
+    await alertsService.sendNotification({
+      userId: vehicle.ownerId,
       type: 'incidents',
       message: `Nueva incidencia reportada: ${incident.description}`
     })
@@ -39,7 +40,7 @@ export class IncidentReporting {
   }
 
   removeIncident(id) {
-    this.repository.remove(id)
+    return this.repository.remove(id)
   }
 }
 

@@ -4,27 +4,27 @@ import { incidentService } from '../../application/incident-reporting.js'
 /** Pinia store — Incident Management. Wraps IncidentReporting. */
 export const useIncidentsStore = defineStore('incidents', {
   state: () => ({
-    incidents: incidentService.listIncidents()
+    incidents: []
   }),
   actions: {
-    refresh() {
-      this.incidents = incidentService.listIncidents()
+    async refresh() {
+      this.incidents = await incidentService.listIncidents()
     },
-    reportVehicleIncident(payload) {
-      incidentService.reportVehicleIncident(payload)
-      this.refresh()
+    async reportVehicleIncident(payload) {
+      await incidentService.reportVehicleIncident(payload)
+      await this.refresh()
     },
-    inspectIncident(id) {
-      incidentService.inspectIncident(id)
-      this.refresh()
+    async inspectIncident(id) {
+      await incidentService.inspectIncident(id)
+      await this.refresh()
     },
-    resolveIncident(id) {
-      incidentService.resolveIncident(id)
-      this.refresh()
+    async resolveIncident(id) {
+      await incidentService.resolveIncident(id)
+      await this.refresh()
     },
-    removeIncident(id) {
-      incidentService.removeIncident(id)
-      this.refresh()
+    async removeIncident(id) {
+      await incidentService.removeIncident(id)
+      await this.refresh()
     }
   }
 })
