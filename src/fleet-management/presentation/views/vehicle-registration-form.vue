@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFleetStore } from '../stores/fleet.store.js'
+import { useSessionStore } from '@/identity-access/presentation/stores/session.store.js'
 import { VehicleStatus, VehicleTypes } from '../../domain/model/value-objects/vehicle-status.js'
 
 import PageHeader from '@/shared/presentation/components/page-header.component.vue'
@@ -14,6 +15,7 @@ import Select from 'primevue/select'
 const router = useRouter()
 const route = useRoute()
 const fleet = useFleetStore()
+const session = useSessionStore()
 
 const editingId = route.params.id ?? null
 const existing = editingId ? fleet.byId(editingId) : null
@@ -21,19 +23,19 @@ const existing = editingId ? fleet.byId(editingId) : null
 const form = ref(
   existing
     ? { ...existing, driverId: existing.driverId ?? '' }
-    : { ownerId: 'u-owner-demo', driverId: '', plate: '', vehicleType: VehicleTypes[0], currentMileage: 0, status: VehicleStatus.AVAILABLE }
+    : { ownerId: session.user?.id, driverId: '', plate: '', vehicleType: VehicleTypes[0], currentMileage: 0, status: VehicleStatus.AVAILABLE }
 )
 
 const title = computed(() => (editingId ? 'Editar vehículo' : 'Registrar vehículo'))
 const driverOptions = computed(() => [{ id: '', name: 'Sin asignar' }, ...fleet.drivers])
 const statusOptions = Object.values(VehicleStatus)
 
-function save() {
+async function save() {
   const payload = { ...form.value, driverId: form.value.driverId || null, currentMileage: Number(form.value.currentMileage) }
   if (editingId) {
-    fleet.updateVehicleInfo(editingId, payload)
+    await fleet.updateVehicleInfo(editingId, payload)
   } else {
-    fleet.registerVehicle(payload)
+    await fleet.registerVehicle(payload)
   }
   router.push('/fleet-management')
 }
