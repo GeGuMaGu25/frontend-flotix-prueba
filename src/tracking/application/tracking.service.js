@@ -1,5 +1,7 @@
-import { IoTDeviceRepository } from '../infrastructure/persistence/iot-device.repository.js'
+import { IoTDeviceApiRepository } from '../infrastructure/persistence/iot-device-api.repository.js'
 import { TelemetryDataRepository } from '../infrastructure/persistence/telemetry-data.repository.js'
+import { TelemetryDataApiRepository } from '../infrastructure/persistence/telemetry-data-api.repository.js'
+import { IoTDevice } from '../domain/model/entities/iot-device.entity.js'
 import { TelemetryData } from '../domain/model/entities/telemetry-data.entity.js'
 import { alertsService } from '@/alerts/application/alerts.service.js'
 import { fleetService } from '@/fleet-management/application/fleet-management.js'
@@ -15,8 +17,10 @@ const CENTER = { lat: -12.046, lng: -77.043 }
  */
 export class TrackingService {
   constructor() {
-    this.deviceRepository = new IoTDeviceRepository()
+    this.deviceRepository = new IoTDeviceApiRepository()
+    // Local rolling window that feeds the map; every packet is also sent to the API.
     this.telemetryRepository = new TelemetryDataRepository()
+    this.telemetryApiRepository = new TelemetryDataApiRepository()
   }
 
   listDevices() {
@@ -24,7 +28,7 @@ export class TrackingService {
   }
 
   connectIoTDevice(payload) {
-    return this.deviceRepository.add({ id: crypto.randomUUID(), createdAt: new Date().toISOString(), connectionStatus: 'Conectado', ...payload })
+    return this.deviceRepository.add(new IoTDevice(payload))
   }
 
   latestTelemetryByDevice() {
@@ -39,7 +43,7 @@ export class TrackingService {
   }
 
   /** ReceiveTelemetry: simulates one incoming GPS/speed packet for a device. */
-  receiveTelemetry(device) {
+  async receiveTelemetry(device) {
     const packet = new TelemetryData({
       deviceId: device.id,
       latitude: +(CENTER.lat + (Math.random() - 0.5) * 0.06).toFixed(5),
@@ -49,9 +53,10 @@ export class TrackingService {
     const records = this.telemetryRepository.getAll()
     records.push(packet)
     this.telemetryRepository._writeAll(records.slice(-200)) // keep a rolling window
+    await this.telemetryApiRepository.add(packet)
 
-    const vehicle = fleetService.listVehicles().find((v) => v.id === device.vehicleId)
-    if (vehicle) alertsService.evaluateSpeedLimit(vehicle, packet.speed)
+    const vehicle = (await fleetService.listVehicles()).find((v) => v.id === device.vehicleId)
+    if (vehicle) await alertsService.evaluateSpeedLimit(vehicle, packet.speed)
     return packet
   }
 }

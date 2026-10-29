@@ -4,21 +4,21 @@ import { trackingService } from '../../application/tracking.service.js'
 /** Pinia store — Real-Time Monitoring / Fleet Tracking. Wraps TrackingService. */
 export const useTrackingStore = defineStore('tracking', {
   state: () => ({
-    devices: trackingService.listDevices(),
+    devices: [],
     latestByDevice: trackingService.latestTelemetryByDevice()
   }),
   actions: {
-    refresh() {
-      this.devices = trackingService.listDevices()
+    async refresh() {
+      this.devices = await trackingService.listDevices()
       this.latestByDevice = trackingService.latestTelemetryByDevice()
     },
-    connectIoTDevice(payload) {
-      trackingService.connectIoTDevice(payload)
-      this.refresh()
+    async connectIoTDevice(payload) {
+      await trackingService.connectIoTDevice(payload)
+      await this.refresh()
     },
-    receiveTelemetry(device) {
-      const packet = trackingService.receiveTelemetry(device)
-      this.refresh()
+    async receiveTelemetry(device) {
+      const packet = await trackingService.receiveTelemetry(device)
+      this.latestByDevice = trackingService.latestTelemetryByDevice()
       return packet
     }
   }
