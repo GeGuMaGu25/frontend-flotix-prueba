@@ -1,7 +1,7 @@
 /**
  * Session helper (Identity, Profiles & Security support infrastructure).
- * Persists the authenticated user's session in localStorage so the SPA
- * survives a page refresh, and centralizes route-guard access checks.
+ * Persists the authenticated user's session (profile + API bearer token)
+ * in localStorage so the SPA survives a page refresh, and centralizes route-guard access checks.
  */
 const SESSION_KEY = 'flotix:session'
 
@@ -20,6 +20,6 @@ export const Session = {
     localStorage.removeItem(SESSION_KEY)
   },
   isAuthenticated() {
-    return this.get() !== null
+    return !!this.get()?.token
   }
 }

@@ -42,10 +42,9 @@ const app_router = createRouter({
 
 // Route guard: Identity, Profiles & Security — AuthenticateUser gate.
 app_router.beforeEach((to) => {
-  // Preparation for IAM
-  // const authenticated = Session.isAuthenticated()
-  // if (!to.meta.public && !authenticated) return '/login'
-  // if (to.meta.public && authenticated) return '/dashboard'
+  const authenticated = Session.isAuthenticated()
+  if (!to.meta.public && !authenticated) return '/login'
+  if (to.meta.public && authenticated) return '/dashboard'
   return true
 })
 

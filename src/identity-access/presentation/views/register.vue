@@ -38,10 +38,10 @@ function chooseRole(role) {
   step.value = 2
 }
 
-function submit() {
+async function submit() {
   error.value = ''
   try {
-    session.register({ ...form.value })
+    await session.register({ ...form.value })
     router.push('/dashboard')
   } catch (e) {
     error.value = e.message
