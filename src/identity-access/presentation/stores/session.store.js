@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { identityService } from '../../application/user-authentication.js'
-import { LocalStorageUserRepository } from '../../infrastructure/persistence/local-storage-user.repository.js'
 import { UserRole } from '../../domain/model/value-objects/user-role.js'
 
 /**
@@ -8,30 +7,34 @@ import { UserRole } from '../../domain/model/value-objects/user-role.js'
  * around UserAuthentication (kept framework-agnostic in the application
  * layer); the store just mirrors its state for components to consume.
  * Also centralizes the read-only user directory (mechanics/workshops
- * lookups) so presentation code never reaches into LocalStorageUserRepository
+ * lookups) so presentation code never reaches into the user repository
  * directly.
  */
 export const useSessionStore = defineStore('session', {
   state: () => ({
     user: identityService.currentUser(),
-    mechanics: new LocalStorageUserRepository().findBy((u) => u.role === UserRole.MECHANIC)
+    users: []
   }),
   getters: {
-    isAuthenticated: (state) => !!state.user,
+    isAuthenticated: (state) => !!state.user?.token,
     role: (state) => state.user?.role ?? null,
-    getUserById: () => (id) => new LocalStorageUserRepository().getById(id)
+    mechanics: (state) => state.users.filter((u) => u.role === UserRole.MECHANIC),
+    getUserById: (state) => (id) => state.users.find((u) => u.id === id) ?? null
   },
   actions: {
-    login(email, password) {
-      identityService.authenticateUser(email, password)
+    async refresh() {
+      this.users = await identityService.listUsers()
+    },
+    async login(email, password) {
+      await identityService.authenticateUser(email, password)
       this.user = identityService.currentUser()
     },
-    register(payload) {
-      identityService.registerUser(payload)
+    async register(payload) {
+      await identityService.registerUser(payload)
       this.user = identityService.currentUser()
     },
-    updateProfile(patch) {
-      identityService.updateProfile(this.user.id, patch)
+    async updateProfile(patch) {
+      await identityService.updateProfile(this.user.id, { ...this.user, ...patch })
       this.user = identityService.currentUser()
     },
     logout() {

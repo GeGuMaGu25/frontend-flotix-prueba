@@ -1,4 +1,4 @@
-import { IoTOrderRepository } from '../infrastructure/persistence/iot-order.repository.js'
+import { IoTOrderApiRepository } from '../infrastructure/persistence/iot-order-api.repository.js'
 import { IoTOrder } from '../domain/model/entities/iot-order.entity.js'
 import { IoTCatalog, OrderStatus } from '../domain/model/value-objects/order-status.js'
 
@@ -11,7 +11,7 @@ import { IoTCatalog, OrderStatus } from '../domain/model/value-objects/order-sta
  */
 export class CommerceService {
   constructor() {
-    this.repository = new IoTOrderRepository()
+    this.repository = new IoTOrderApiRepository()
   }
 
   get catalog() {
@@ -22,7 +22,7 @@ export class CommerceService {
     return this.repository.getAll()
   }
 
-  purchaseIoTDevice({ ownerId, sku, deviceQuantity }) {
+  async purchaseIoTDevice({ ownerId, sku, deviceQuantity }) {
     const product = IoTCatalog.find((p) => p.sku === sku)
     const order = new IoTOrder({
       ownerId,
@@ -31,17 +31,17 @@ export class CommerceService {
       totalAmount: product.unitPrice * Number(deviceQuantity),
       status: OrderStatus.PENDING_PAYMENT
     })
-    this.repository.add(order)
-    return this.processPayment(order.id)
+    const created = await this.repository.add(order)
+    return { ...(await this.processPayment(created.id)), sku }
   }
 
   /** ProcessPayment: on success, auto-transitions the order to "En preparación". */
   processPayment(orderId) {
-    return this.repository.update(orderId, { status: OrderStatus.IN_PREPARATION })
+    return this.repository.updateStatus(orderId, OrderStatus.IN_PREPARATION)
   }
 
   updateOrderStatus(orderId, status) {
-    return this.repository.update(orderId, { status })
+    return this.repository.updateStatus(orderId, status)
   }
 }
 

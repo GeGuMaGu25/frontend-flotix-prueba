@@ -1,42 +1,44 @@
 import { defineStore } from 'pinia'
 import { maintenanceService } from '../../application/maintenance-coordination.js'
+import { useFleetStore } from '@/fleet-management/presentation/stores/fleet.store.js'
 
 /** Pinia store — Maintenance Management. Wraps MaintenanceCoordination. */
 export const useMaintenanceStore = defineStore('maintenance', {
   state: () => ({
-    requests: maintenanceService.listRequests()
+    requests: []
   }),
   getters: {
     byId: (state) => (id) => state.requests.find((r) => r.id === id) ?? null
   },
   actions: {
-    refresh() {
-      this.requests = maintenanceService.listRequests()
+    async refresh() {
+      this.requests = await maintenanceService.listRequests()
     },
-    submitMaintenanceRequest(payload) {
-      const r = maintenanceService.submitMaintenanceRequest(payload)
-      this.refresh()
+    async submitMaintenanceRequest(payload) {
+      const r = await maintenanceService.submitMaintenanceRequest(payload)
+      await this.refresh()
       return r
     },
-    registerDiagnosticAndQuote(id, payload) {
-      maintenanceService.registerDiagnosticAndQuote(id, payload)
-      this.refresh()
+    async registerDiagnosticAndQuote(id, payload) {
+      await maintenanceService.registerDiagnosticAndQuote(id, payload)
+      await this.refresh()
     },
-    approveOrRejectBudget(id, approved) {
-      maintenanceService.approveOrRejectBudget(id, approved)
-      this.refresh()
+    async approveOrRejectBudget(id, approved) {
+      await maintenanceService.approveOrRejectBudget(id, approved)
+      await this.refresh()
     },
-    updateRepairStatus(id, status) {
-      maintenanceService.updateRepairStatus(id, status)
-      this.refresh()
+    async updateRepairStatus(id, status) {
+      await maintenanceService.updateRepairStatus(id, status)
+      // The vehicle status changes too (cross-context rule).
+      await Promise.all([this.refresh(), useFleetStore().refresh()])
     },
-    completeMaintenance(id) {
-      maintenanceService.completeMaintenance(id)
-      this.refresh()
+    async completeMaintenance(id) {
+      await maintenanceService.completeMaintenance(id)
+      await Promise.all([this.refresh(), useFleetStore().refresh()])
     },
-    removeRequest(id) {
-      maintenanceService.removeRequest(id)
-      this.refresh()
+    async removeRequest(id) {
+      await maintenanceService.removeRequest(id)
+      await this.refresh()
     }
   }
 })

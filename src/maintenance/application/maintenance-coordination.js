@@ -1,4 +1,4 @@
-import { MaintenanceRequestRepository } from '../infrastructure/persistence/maintenance-request.repository.js'
+import { MaintenanceRequestApiRepository } from '../infrastructure/persistence/maintenance-request-api.repository.js'
 import { MaintenanceRequest } from '../domain/model/entities/maintenance-request.entity.js'
 import { MaintenanceStatus } from '../domain/model/value-objects/maintenance-status.js'
 import { fleetService } from '@/fleet-management/application/fleet-management.js'
@@ -12,7 +12,7 @@ import { fleetService } from '@/fleet-management/application/fleet-management.js
  */
 export class MaintenanceCoordination {
   constructor() {
-    this.repository = new MaintenanceRequestRepository()
+    this.repository = new MaintenanceRequestApiRepository()
   }
 
   listRequests() {
@@ -24,33 +24,30 @@ export class MaintenanceCoordination {
     return this.repository.add(request)
   }
 
-  registerDiagnosticAndQuote(id, { mechanicId, estimatedCost }) {
-    return this.repository.update(id, { mechanicId, estimatedCost: Number(estimatedCost), status: MaintenanceStatus.QUOTED })
+  /** The API assigns the request's workshop at submission, so only the quote amount is sent here. */
+  registerDiagnosticAndQuote(id, { estimatedCost }) {
+    return this.repository.registerDiagnosticAndQuote(id, estimatedCost)
   }
 
   approveOrRejectBudget(id, approved) {
-    const status = approved ? MaintenanceStatus.APPROVED : MaintenanceStatus.REJECTED
-    return this.repository.update(id, { status })
+    return this.repository.approveOrRejectBudget(id, approved)
   }
 
-  updateRepairStatus(id, status) {
-    const updated = this.repository.update(id, { status })
-    if (status === MaintenanceStatus.IN_REPAIR && updated) {
-      fleetService.markInMaintenance(updated.vehicleId)
-    }
+  async updateRepairStatus(id, status) {
+    if (status !== MaintenanceStatus.IN_REPAIR) return null
+    const updated = await this.repository.startRepair(id)
+    await fleetService.markInMaintenance(updated.vehicleId)
     return updated
   }
 
-  completeMaintenance(id) {
-    const updated = this.repository.update(id, { status: MaintenanceStatus.COMPLETED })
-    if (updated) {
-      fleetService.markAvailable(updated.vehicleId)
-    }
+  async completeMaintenance(id) {
+    const updated = await this.repository.complete(id)
+    await fleetService.markAvailable(updated.vehicleId)
     return updated
   }
 
   removeRequest(id) {
-    this.repository.remove(id)
+    return this.repository.remove(id)
   }
 }
 

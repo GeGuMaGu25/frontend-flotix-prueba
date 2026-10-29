@@ -18,10 +18,10 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 
-function submit() {
+async function submit() {
   error.value = ''
   try {
-    session.login(email.value, password.value)
+    await session.login(email.value, password.value)
     router.push('/dashboard')
   } catch (e) {
     error.value = e.message

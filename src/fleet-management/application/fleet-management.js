@@ -1,4 +1,4 @@
-import { VehicleRepository } from '../infrastructure/persistence/vehicle.repository.js'
+import { VehicleApiRepository } from '../infrastructure/persistence/vehicle-api.repository.js'
 import { Vehicle } from '../domain/model/entities/vehicle.entity.js'
 import { VehicleStatus } from '../domain/model/value-objects/vehicle-status.js'
 
@@ -9,11 +9,15 @@ import { VehicleStatus } from '../domain/model/value-objects/vehicle-status.js'
  */
 export class FleetManagement {
   constructor() {
-    this.repository = new VehicleRepository()
+    this.repository = new VehicleApiRepository()
   }
 
   listVehicles() {
     return this.repository.getAll()
+  }
+
+  getVehicle(id) {
+    return this.repository.getById(id)
   }
 
   registerVehicle(payload) {
@@ -43,7 +47,7 @@ export class FleetManagement {
   }
 
   removeVehicle(id) {
-    this.repository.remove(id)
+    return this.repository.remove(id)
   }
 }
 

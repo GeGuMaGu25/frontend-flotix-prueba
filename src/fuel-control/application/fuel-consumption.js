@@ -1,4 +1,4 @@
-import { LocalStorageFuelRecord } from '../infrastructure/persistence/local-storage-fuel-record.js'
+import { FuelRecordApiRepository } from '../infrastructure/persistence/fuel-record-api.repository.js'
 import { FuelRecord } from '../domain/model/entities/fuel-record.entity.js'
 import { getFleetPreferences } from '@/platform/infrastructure/user-preferences.js'
 
@@ -14,7 +14,7 @@ import { getFleetPreferences } from '@/platform/infrastructure/user-preferences.
 
 export class FuelConsumption {
   constructor() {
-    this.repository = new LocalStorageFuelRecord()
+    this.repository = new FuelRecordApiRepository()
   }
 
   listRecords() {
@@ -27,13 +27,16 @@ export class FuelConsumption {
   }
 
   removeRecord(id) {
-    this.repository.remove(id)
+    return this.repository.remove(id)
   }
 
-  /** Computes km/L efficiency per record for a given vehicle, ordered by mileage. */
-  efficiencyFor(vehicleId) {
-    const records = this.repository
-      .findBy((r) => r.vehicleId === vehicleId)
+  /**
+   * Computes km/L efficiency per record for a given vehicle, ordered by mileage.
+   * Works over already-fetched records so presentation code can call it synchronously.
+   */
+  efficiencyFor(vehicleId, allRecords) {
+    const records = allRecords
+      .filter((r) => r.vehicleId === vehicleId)
       .sort((a, b) => a.mileageAtRefuel - b.mileageAtRefuel)
 
     return records.map((r, idx) => {
@@ -52,12 +55,13 @@ export class FuelConsumption {
     })
   }
 
-  allRecordsWithEfficiency() {
+  async allRecordsWithEfficiency() {
+    const records = await this.repository.getAll()
     const byVehicle = {}
-    for (const r of this.repository.getAll()) {
+    for (const r of records) {
       byVehicle[r.vehicleId] = byVehicle[r.vehicleId] || true
     }
-    return Object.keys(byVehicle).flatMap((vehicleId) => this.efficiencyFor(vehicleId))
+    return Object.keys(byVehicle).flatMap((vehicleId) => this.efficiencyFor(vehicleId, records))
       .sort((a, b) => new Date(b.date) - new Date(a.date))
   }
 }

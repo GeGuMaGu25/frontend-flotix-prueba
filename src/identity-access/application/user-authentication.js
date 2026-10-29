@@ -1,4 +1,4 @@
-import { LocalStorageUserRepository } from '../infrastructure/persistence/local-storage-user.repository.js'
+import { UserApiRepository } from '../infrastructure/persistence/user-api.repository.js'
 import { User } from '../domain/model/entities/user.entity.js'
 import { Session } from '@/shared/infrastructure/session.js'
 
@@ -9,30 +9,34 @@ import { Session } from '@/shared/infrastructure/session.js'
  */
 export class UserAuthentication {
   constructor() {
-    this.repository = new LocalStorageUserRepository()
+    this.repository = new UserApiRepository()
   }
 
-  registerUser(payload) {
-    if (this.repository.findByEmail(payload.email)) {
-      throw new Error('Ya existe una cuenta registrada con este correo electrónico.')
-    }
-    const user = new User({ ...payload, passwordHash: payload.password })
-    this.repository.add(user)
-    Session.set(this._toSessionUser(user))
+  /** RegisterUser: signs up through the API, then opens the session with the same credentials. */
+  async registerUser(payload) {
+    // Validates the Driver license business rule before calling the API.
+    new User({ ...payload, passwordHash: payload.password })
+    await this.repository.signUp(payload)
+    return this.authenticateUser(payload.email, payload.password)
+  }
+
+  /** AuthenticateUser: signs in, then loads the full profile for the session. */
+  async authenticateUser(email, password) {
+    const { token, user: authenticated } = await this.repository.signIn(email, password)
+    Session.set({ ...authenticated, token })
+    const user = await this.repository.getById(authenticated.id)
+    Session.set({ ...user, token })
     return user
   }
 
-  authenticateUser(email, password) {
-    const user = this.repository.findByEmail(email)
-    if (!user || user.passwordHash !== password) {
-      throw new Error('Credenciales inválidas. Verifica tu correo y contraseña.')
-    }
-    Session.set(this._toSessionUser(user))
+  async updateProfile(id, patch) {
+    const user = await this.repository.update(id, patch)
+    Session.set({ ...user, token: Session.get()?.token })
     return user
   }
 
-  updateProfile(id, patch) {
-    return this.repository.update(id, patch)
+  listUsers() {
+    return this.repository.getAll()
   }
 
   logout() {
@@ -41,11 +45,6 @@ export class UserAuthentication {
 
   currentUser() {
     return Session.get()
-  }
-
-  _toSessionUser(user) {
-    const { passwordHash, ...safe } = user
-    return safe
   }
 }
 

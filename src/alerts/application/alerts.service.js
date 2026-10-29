@@ -1,5 +1,5 @@
-import { AlertRepository } from '../infrastructure/persistence/alert.repository.js'
-import { NotificationRepository } from '../infrastructure/persistence/notification.repository.js'
+import { AlertApiRepository } from '../infrastructure/persistence/alert-api.repository.js'
+import { NotificationApiRepository } from '../infrastructure/persistence/notification-api.repository.js'
 import { Alert } from '../domain/model/entities/alert.entity.js'
 import { Notification } from '../domain/model/entities/notification.entity.js'
 import { getFleetPreferences, getNotificationPreferences } from '@/platform/infrastructure/user-preferences.js'
@@ -18,8 +18,8 @@ const MAINTENANCE_THRESHOLD_RATIO = 0.9 // 90% of the configured service interva
 
 export class AlertsService {
   constructor() {
-    this.alertRepository = new AlertRepository()
-    this.notificationRepository = new NotificationRepository()
+    this.alertRepository = new AlertApiRepository()
+    this.notificationRepository = new NotificationApiRepository()
   }
 
   listAlerts() {
@@ -36,14 +36,14 @@ export class AlertsService {
   }
 
   /** SendNotification, gated by the recipient's per-type preference (Settings → Notificaciones). */
-  sendNotification({ userId, alertId = null, message, type = 'maintenance' }) {
+  async sendNotification({ userId, alertId = null, message, type = 'maintenance' }) {
     if (!getNotificationPreferences(userId)[type]) return null
     const notification = new Notification({ userId, alertId, message })
     return this.notificationRepository.add(notification)
   }
 
   markNotificationAsRead(id) {
-    return this.notificationRepository.update(id, { isRead: true })
+    return this.notificationRepository.markAsRead(id)
   }
 
   /**
@@ -51,15 +51,15 @@ export class AlertsService {
    * last service. Generates a MaintenanceAlertGenerated event once 90% of
    * the configured service interval (Settings → Flota) is reached.
    */
-  evaluateMaintenanceThreshold(vehicle, kmSinceLastService) {
+  async evaluateMaintenanceThreshold(vehicle, kmSinceLastService) {
     const serviceIntervalKm = getFleetPreferences().maintenanceIntervalKm
     const ratio = kmSinceLastService / serviceIntervalKm
     if (ratio >= MAINTENANCE_THRESHOLD_RATIO) {
-      const alert = this.generateAlert({
+      const alert = await this.generateAlert({
         vehicleId: vehicle.id,
         alertType: `Mantenimiento próximo (${Math.round(ratio * 100)}% de kilometraje)`
       })
-      this.sendNotification({
+      await this.sendNotification({
         userId: vehicle.ownerId,
         alertId: alert.id,
         type: 'maintenance',
@@ -70,10 +70,10 @@ export class AlertsService {
     return null
   }
 
-  evaluateSpeedLimit(vehicle, speedKmh, limitKmh = getFleetPreferences().speedLimitKmh) {
+  async evaluateSpeedLimit(vehicle, speedKmh, limitKmh = getFleetPreferences().speedLimitKmh) {
     if (speedKmh > limitKmh) {
-      const alert = this.generateAlert({ vehicleId: vehicle.id, alertType: `Exceso de velocidad (${speedKmh} km/h)` })
-      this.sendNotification({
+      const alert = await this.generateAlert({ vehicleId: vehicle.id, alertType: `Exceso de velocidad (${speedKmh} km/h)` })
+      await this.sendNotification({
         userId: vehicle.ownerId,
         alertId: alert.id,
         type: 'speed',

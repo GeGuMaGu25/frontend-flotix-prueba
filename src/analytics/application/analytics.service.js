@@ -1,4 +1,4 @@
-import { ReportRepository } from '../infrastructure/persistence/report.repository.js'
+import { ReportApiRepository } from '../infrastructure/persistence/report-api.repository.js'
 import { Report } from '../domain/model/entities/report.entity.js'
 import { fleetService } from '@/fleet-management/application/fleet-management.js'
 import { fuelControlService } from '@/fuel-control/application/fuel-consumption.js'
@@ -15,14 +15,16 @@ import { MaintenanceStatus } from '@/maintenance/domain/model/value-objects/main
  */
 export class AnalyticsService {
   constructor() {
-    this.repository = new ReportRepository()
+    this.repository = new ReportApiRepository()
   }
 
   /** ConsolidateFleetData */
-  consolidateFleetData() {
-    const vehicles = fleetService.listVehicles()
-    const fuelRecords = fuelControlService.listRecords()
-    const maintenanceRequests = maintenanceService.listRequests()
+  async consolidateFleetData() {
+    const [vehicles, fuelRecords, maintenanceRequests] = await Promise.all([
+      fleetService.listVehicles(),
+      fuelControlService.listRecords(),
+      maintenanceService.listRequests()
+    ])
 
     return {
       totalVehicles: vehicles.length,
@@ -33,14 +35,13 @@ export class AnalyticsService {
   }
 
   /** GeneratePerformanceReport: per-vehicle fuel cost & efficiency comparison. */
-  generatePerformanceReport() {
-    const vehicles = fleetService.listVehicles()
-    const fuelRecords = fuelControlService.listRecords()
+  async generatePerformanceReport() {
+    const [vehicles, fuelRecords] = await Promise.all([fleetService.listVehicles(), fuelControlService.listRecords()])
 
     return vehicles
       .map((v) => {
         const records = fuelRecords.filter((r) => r.vehicleId === v.id)
-        const efficiencies = fuelControlService.efficiencyFor(v.id).map((r) => r.kmPerLiter).filter((v) => v !== null)
+        const efficiencies = fuelControlService.efficiencyFor(v.id, fuelRecords).map((r) => r.kmPerLiter).filter((v) => v !== null)
         const avgEfficiency = efficiencies.length ? +(efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length).toFixed(2) : null
         return {
           vehicleId: v.id,
@@ -54,11 +55,12 @@ export class AnalyticsService {
       .filter((row) => row.recordCount >= 2)
   }
 
-  /** ExportReportToPdf — simulated locally as a downloadable text export. */
+  /**
+   * ExportReportToPdf — the API generates and stores the report; the file
+   * itself is still a local text export. filterParams carries the { from, to } period.
+   */
   exportReportToPdf(ownerId, reportType, filterParams = {}) {
-    const report = new Report({ ownerId, reportType, filterParams })
-    this.repository.add(report)
-    return report
+    return this.repository.add(new Report({ ownerId, reportType, filterParams }))
   }
 
   listReports() {

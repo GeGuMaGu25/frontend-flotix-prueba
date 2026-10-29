@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toggleLocale, i18n } from '@/internationalization/i18n.js'
@@ -8,6 +8,11 @@ import { UserRole, RoleLabels } from '@/identity-access/domain/model/value-objec
 import { useAlertsStore } from '@/alerts/presentation/stores/alerts.store.js'
 import { useFleetStore } from '@/fleet-management/presentation/stores/fleet.store.js'
 import { useMaintenanceStore } from '@/maintenance/presentation/stores/maintenance.store.js'
+import { useFuelStore } from '@/fuel-control/presentation/stores/fuel.store.js'
+import { useIncidentsStore } from '@/incidents/presentation/stores/incidents.store.js'
+import { useTrackingStore } from '@/tracking/presentation/stores/tracking.store.js'
+import { useCommerceStore } from '@/iot-commerce/presentation/stores/commerce.store.js'
+import { useAnalyticsStore } from '@/analytics/presentation/stores/analytics.store.js'
 import { MaintenanceStatus } from '@/maintenance/domain/model/value-objects/maintenance-status.js'
 import { VehicleStatus } from '@/fleet-management/domain/model/value-objects/vehicle-status.js'
 import AppIcon from '@/shared/presentation/components/app-icon.component.vue'
@@ -24,8 +29,26 @@ const session = useSessionStore()
 const alerts = useAlertsStore()
 const fleet = useFleetStore()
 const maintenance = useMaintenanceStore()
+const fuel = useFuelStore()
+const incidents = useIncidentsStore()
+const tracking = useTrackingStore()
+const commerce = useCommerceStore()
+const analytics = useAnalyticsStore()
 
 const user = computed(() => session.user)
+
+// Pages read the stores synchronously, so they render once the Flotix API data is loaded.
+const loaded = ref(false)
+const loadError = ref('')
+onMounted(async () => {
+  try {
+    await Promise.all([session.refresh(), fleet.refresh(), maintenance.refresh(), fuel.refresh(), incidents.refresh(), tracking.refresh(), alerts.refresh()])
+    if (user.value?.role === UserRole.OWNER) await Promise.all([commerce.refresh(), analytics.refresh()])
+    loaded.value = true
+  } catch (e) {
+    loadError.value = e.message
+  }
+})
 const mobileOpen = ref(false)
 const notifPanel = ref(null)
 
@@ -208,7 +231,9 @@ function logout() {
       </header>
 
       <main class="flex-1 p-3">
-        <router-view />
+        <router-view v-if="loaded" />
+        <p v-else-if="loadError" class="text-sm text-red-500 m-0">No se pudo conectar con la API de Flotix: {{ loadError }}</p>
+        <p v-else class="text-sm text-faint m-0">{{ t('common.loading') }}</p>
       </main>
     </div>
   </div>

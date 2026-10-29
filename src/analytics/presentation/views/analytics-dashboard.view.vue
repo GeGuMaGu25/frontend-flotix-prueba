@@ -15,8 +15,11 @@ const performance = analytics.performance
 
 const maxCost = computed(() => Math.max(1, ...performance.map((p) => p.totalCost)))
 
-function exportReport() {
-  const report = analytics.exportReportToPdf(session.user?.id ?? 'u-owner-demo', 'Reporte de rendimiento de flota', {})
+async function exportReport() {
+  // The API stores the report as a fuel consumption report for the last 12 months.
+  const to = new Date()
+  const from = new Date(to.getFullYear() - 1, to.getMonth(), to.getDate())
+  const report = await analytics.exportReportToPdf(session.user?.id, 'Reporte de consumo de combustible', { from, to })
 
   const lines = [
     'FLOTIX — Reporte de Rendimiento de Flota (exportación simulada)',

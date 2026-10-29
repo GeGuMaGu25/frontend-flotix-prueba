@@ -27,8 +27,8 @@ function plate(id) {
 
 const form = ref({ mechanicId: mechanics[0]?.id ?? '', estimatedCost: request?.estimatedCost || null })
 
-function save() {
-  maintenance.registerDiagnosticAndQuote(request.id, form.value)
+async function save() {
+  await maintenance.registerDiagnosticAndQuote(request.id, form.value)
   router.push('/maintenance')
 }
 </script>
